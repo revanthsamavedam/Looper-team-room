@@ -107,6 +107,7 @@
   .msg .meta { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
   .msg .meta b { color: #e2e8f0; font-size: 13px; }
   .msg .text { font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .msg .shot { display: block; max-width: 100%; border: 1px solid #334155; border-radius: 8px; margin-top: 6px; }
   .msg.user { align-self: flex-end; flex-direction: row-reverse; }
   .msg.user .body { background: #1d4ed8; border-color: #1d4ed8; }
   .msg.user .meta { color: #bfdbfe; }
@@ -367,9 +368,16 @@ function renderMessage(m) {
   const name = m.author_type === "user" ? "You" : esc(m.author);
   const time = new Date(m.ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
   const chip = m.goal_id ? `<span class="goal-chip">🎯 ${esc(goalTitle(m.goal_id))}</span>` : "";
+  // Browser screenshots: a screenshot URL in the message becomes the
+  // image itself, so the room sees what the browser saw. The URL is
+  // server-generated (shot-*.png), so only that strict pattern is
+  // turned into an <img> — everything else stays escaped text.
+  const shotRe = /(\/api\/screenshots\/shot-[A-Za-z0-9][A-Za-z0-9._-]*\.png)/g;
+  const body = esc(m.content || "").replace(shotRe,
+    '<br><img class="shot" src="$1" alt="browser screenshot" loading="lazy">');
   el.innerHTML = `<div class="avatar" style="border:2px solid ${colour}">${emoji}</div>
     <div class="body"><div class="meta"><b>${name}</b> ${m.handle ? "@" + esc(m.handle) + " · " : ""}${time}${chip}</div>
-    <div class="text">${esc(m.content || "")}</div></div>`;
+    <div class="text">${body}</div></div>`;
   return el;
 }
 

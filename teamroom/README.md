@@ -244,10 +244,35 @@ One instruction at a time per server: a second message while the room
 is working gets a plain 409. The room log is SQLite, so history
 survives restarts.
 
+## Live web and the browser
+
+The Researcher can read live pages two ways:
+
+- `web_fetch` — plain HTTP GET (stdlib only), works everywhere including
+  Vercel. Use it for readable pages.
+- The browser tools — `browser_navigate`, `browser_read`, `browser_click`,
+  `browser_type`, `browser_screenshot` — drive a real Chromium via
+  Playwright, for pages that need JavaScript or interaction. Each call
+  has a 15s timeout so a slow page cannot eat the 45s turn deadline.
+
+The browser needs a host with Chromium — a persistent VM, not Vercel
+serverless. The tools register only when Playwright is importable, so
+on Vercel they are hidden and `web_fetch` is the only live-web tool;
+on a VM with Chromium installed they appear. If Chromium cannot
+launch, each call returns a clear error instead of crashing the turn.
+On a VM: `pip install playwright && python -m playwright install
+chromium` (deploy-teamroom.sh does this in the room's venv).
+
+Screenshots are how you see what the browser sees: `browser_screenshot`
+saves a PNG and returns its URL, the agent's reply includes the URL,
+and the room renders it as an image in the message. Screenshots are
+served at `GET /api/screenshots/{name}`. `/api/status` reports whether
+the browser is available on the current host.
+
 ## API
 
 - `GET /` — the chat UI
-- `GET /api/status` — model status, counts
+- `GET /api/status` — model status, browser availability, counts
 - `GET /api/agents` — roster (built-ins + customs)
 - `GET /api/rooms`, `POST /api/rooms`
 - `GET /api/rooms/{id}/messages?after=N`
@@ -269,10 +294,12 @@ survives restarts.
 - `GET /api/teams/{id}/memory?handle=`, `POST /api/teams/{id}/memory`
 - `GET /api/best-practices`, `POST /api/best-practices`,
   `DELETE /api/best-practices/{id}`
+- `GET /api/screenshots/{name}` — a browser screenshot PNG
 
 ## Tests
 
 ```bash
 python tests/test_teamroom.py   # no key, no network, no server
+python tests/test_browser_tools.py  # web_fetch + browser tools (fake Playwright)
 python tests/test_looper.py     # the looper's own 6 tests, untouched
 ```

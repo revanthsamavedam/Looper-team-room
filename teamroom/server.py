@@ -31,6 +31,7 @@ import asyncio
 import io
 import json
 import os
+import re
 import threading
 import time
 import zipfile
@@ -39,7 +40,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from . import agents, github, orchestrator
+from . import agents, browser_tools, github, orchestrator
 from .skills import parse_skill_text
 from .store import RoomStore
 
@@ -98,6 +99,7 @@ def index():
 def status():
     return {"model": model_status,
             "byok": True,
+            "browser": browser_tools.browser_status(),
             "rooms": len(store.list_rooms()),
             "members": len(agents.list_members(store)),
             "teams": len(store.list_teams()),
@@ -535,6 +537,22 @@ def create_github_repo(project_id: str, payload: dict | None = None):
         # so plainly. Other GitHub failures are reported as-is.
         status = 400 if "GITHUB_TOKEN" in str(exc) else 502
         raise HTTPException(status, str(exc))
+
+
+# -- browser screenshots --------------------------------------------------
+@app.get("/api/screenshots/{name}")
+def get_screenshot(name: str):
+    """Serve a browser screenshot PNG saved by browser_screenshot.
+
+    Names are server-generated (shot-*.png); anything else is rejected
+    so the endpoint can never serve an arbitrary file.
+    """
+    if not re.fullmatch(r"shot-[A-Za-z0-9][A-Za-z0-9._-]*\.png", name):
+        raise HTTPException(400, "bad screenshot name")
+    path = browser_tools.screenshot_dir() / name
+    if not path.is_file():
+        raise HTTPException(404, "no such screenshot")
+    return FileResponse(path, media_type="image/png")
 
 
 # -- team-scoped member memory --------------------------------------------

@@ -2,3 +2,8 @@
 fastapi>=0.110
 uvicorn>=0.29
 python-multipart>=0.0.9
+# playwright is intentionally NOT listed here: it is optional and only
+# for hosts with Chromium (a persistent VM). The browser tools import
+# it lazily and stay hidden when it is absent, so the Vercel deploy
+# never needs it. On a VM: pip install playwright && python -m
+# playwright install chromium (deploy-teamroom.sh does this).

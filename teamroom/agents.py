@@ -14,6 +14,7 @@ verification only, never presented as a real model.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -24,6 +25,7 @@ from looper.provider import (OpenAICompatibleClient, ResolvedProvider,
                              resolve_provider)
 from looper.state import SessionStore
 
+from . import browser_tools  # noqa: F401 — import registers web_fetch + browser tools
 from . import projects  # noqa: F401 — import installs the project-aware file tools
 from .store import RoomStore
 
@@ -86,7 +88,14 @@ BUILTINS: list[Member] = [
            system_prompt=_room_rule("Researcher", "researcher")
            + " Gather the facts first: what exists, how options compare, "
              "and what the trade-offs are. Cite what you found and say what "
-             "you could not verify."),
+             "you could not verify. You can read live web pages: use "
+             "web_fetch for plain readable pages, and the browser tools "
+             "(browser_navigate, browser_read, browser_click, browser_type, "
+             "browser_screenshot) for pages that need JavaScript or "
+             "interaction. After a browser_screenshot, include its "
+             "screenshot URL in your reply so the room can see the page. "
+             "If the browser is not available on this host, say so and "
+             "use web_fetch instead."),
     Member(name="Writer", handle="writer", colour="#f59e0b", emoji="✍️",
            specialty="Writes docs, drafts and summaries",
            system_prompt=_room_rule("Writer", "technical writer")
@@ -260,7 +269,7 @@ class MockClient:
 
 def make_looper(member: Member, max_turns: int = 12,
                 provider: ResolvedProvider | None = None,
-                deadline: float | None = None) -> Looper:
+                deadline: float | None = None, on_tool=None) -> Looper:
     """One Looper per member per run: own home dir, own session store.
 
     Provider precedence: mock client (verification only) wins, then an
@@ -268,6 +277,8 @@ def make_looper(member: Member, max_turns: int = 12,
     `deadline` is a monotonic timestamp: once it is past, the Looper
     starts no new provider call, so a member's run ends with the
     partial work it has instead of blowing the hosting time limit.
+    `on_tool` is passed through to the Looper: it is called with
+    (name, args) before a tool call and (name, result) after it.
     """
     home = ROOM_HOME / "homes" / member.handle
     home.mkdir(parents=True, exist_ok=True)
@@ -278,7 +289,8 @@ def make_looper(member: Member, max_turns: int = 12,
     else:
         client = None
     return Looper(client=client, store=SessionStore(":memory:"), home=home,
-                  max_turns=max_turns, auto_approve=False, deadline=deadline)
+                  max_turns=max_turns, auto_approve=False, deadline=deadline,
+                  on_tool=on_tool)
 
 
 def run_member(member: Member, task: str, room_context: str,
@@ -297,8 +309,10 @@ def run_member(member: Member, task: str, room_context: str,
     the tool dispatch even when this run is a parallel-path pool
     worker.
     """
+    screenshot_urls: list[str] = []
+    _collect_screenshot = _collect_screenshot_factory(screenshot_urls)
     looper = make_looper(member, max_turns=max_turns, provider=provider,
-                         deadline=deadline)
+                         deadline=deadline, on_tool=_collect_screenshot)
     message = ""
     if room_context.strip():
         message += f"{room_context}\n\n"
@@ -308,8 +322,34 @@ def run_member(member: Member, task: str, room_context: str,
             result = looper.run_conversation(message, system_message=member.system_prompt)
         if result.get("stopped") == "deadline":
             text = (result.get("final_response") or "").strip()
-            return (text + "\n⏱️ (ran out of time — partial work above)"
+            text = (text + "\n⏱️ (ran out of time — partial work above)"
                     if text else "⏱️ (ran out of time before finishing)")
-        return (result.get("final_response") or "").strip() or "(no answer)"
+        else:
+            text = (result.get("final_response") or "").strip() or "(no answer)"
     except Exception as exc:  # noqa: BLE001 — the room reports, never crashes
         return f"⚠️ {member.name} could not finish: {type(exc).__name__}: {exc}"
+    # Screenshot safety net: a browser_screenshot during the run must
+    # land in the posted reply, even if the model forgot to mention
+    # the URL — that is how the room sees what the browser saw.
+    missing = [u for u in screenshot_urls if u not in text]
+    if missing:
+        text += "\n\n📸 Browser screenshots:\n" + "\n".join(missing)
+    return text
+
+
+def _collect_screenshot_factory(screenshot_urls: list[str]):
+    """on_tool callback that records screenshot URLs from
+    browser_screenshot results. The Looper calls on_tool twice per
+    tool call — (name, args) before, (name, result) after — so only
+    the string result is parsed."""
+    def _on_tool(name, payload):
+        if name != "browser_screenshot" or not isinstance(payload, str):
+            return
+        try:
+            data = json.loads(payload)
+        except ValueError:
+            return
+        url = data.get("screenshot_url") if isinstance(data, dict) else None
+        if url and url not in screenshot_urls:
+            screenshot_urls.append(url)
+    return _on_tool
