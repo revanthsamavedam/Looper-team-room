@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Looper Team Room</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+           background: #1e293b; border-bottom: 1px solid #334155; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: #94a3b8; font-size: 13px; }
+  #model-pill { margin-left: auto; font-size: 12px; padding: 4px 10px; border-radius: 999px;
+                background: #14532d; color: #bbf7d0; }
+  #model-pill.warn { background: #713f12; color: #fde68a; }
+  #layout { flex: 1; display: flex; min-height: 0; }
+  aside { width: 280px; flex-shrink: 0; background: #1e293b; border-right: 1px solid #334155;
+          padding: 12px; overflow-y: auto; }
+  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
+             color: #94a3b8; margin: 14px 0 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .member { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 8px; }
+  .member:hover { background: #273449; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 17px;
+            background: #334155; }
+  .member .name { font-weight: 600; font-size: 14px; }
+  .member .handle { color: #94a3b8; font-size: 12px; }
+  .member .spec { font-size: 12px; color: #cbd5e1; margin-top: 2px; }
+  .member .xp { font-size: 12px; color: #fbbf24; margin-top: 3px; }
+  .member .xp .bar { display: inline-block; width: 90px; height: 6px; background: #334155;
+                     border-radius: 3px; overflow: hidden; vertical-align: middle; margin-left: 6px; }
+  .member .xp .bar i { display: block; height: 100%; background: #f59e0b; }
+  .badges { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .badge-chip { font-size: 10px; background: #713f12; color: #fde68a; border-radius: 999px;
+                padding: 1px 7px; white-space: nowrap; }
+  .leader { display: flex; gap: 8px; align-items: center; padding: 6px 8px;
+            border-radius: 8px; font-size: 13px; }
+  .leader .rank { width: 20px; color: #94a3b8; font-weight: 700; text-align: right; }
+  .leader .lname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leader .lxp { color: #fbbf24; font-size: 12px; }
+  .goal .bar-wrap { height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .goal .bar-wrap i { display: block; height: 100%; background: #22c55e; }
+  .goal .gprog { color: #94a3b8; font-size: 12px; margin-top: 3px; }
+  .badge { font-size: 10px; background: #334155; color: #cbd5e1; border-radius: 4px;
+           padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+  .hint { font-size: 12px; color: #94a3b8; margin: 4px 0 8px; }
+  aside input[type=file] { width: 100%; font-size: 12px; color: #cbd5e1; margin-bottom: 8px; }
+  aside textarea { width: 100%; height: 110px; background: #0f172a; color: #e2e8f0;
+                   border: 1px solid #334155; border-radius: 8px; padding: 8px;
+                   font: 12px/1.5 monospace; resize: vertical; }
+  aside button, #send { background: #2563eb; color: #fff; border: 0; border-radius: 8px;
+                        padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  aside button:hover, #send:hover { background: #1d4ed8; }
+  aside button:disabled, #send:disabled { opacity: .5; cursor: default; }
+  #add-member { width: 100%; margin-top: 8px; }
+  #member-error { color: #fca5a5; font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+  .err { color: #fca5a5; font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+  #member-ok { color: #86efac; font-size: 12px; margin-top: 6px; }
+  details { font-size: 12px; color: #94a3b8; margin-top: 10px; }
+  details pre { background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+                padding: 8px; overflow-x: auto; white-space: pre-wrap; color: #cbd5e1; }
+  .team, .goal, .practice { padding: 8px; border-radius: 8px; margin-bottom: 6px;
+                            background: #273449; font-size: 13px; }
+  .team .tname, .goal .gname { font-weight: 600; }
+  .team .members, .goal .members { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+  .goal .gdesc { color: #cbd5e1; font-size: 12px; margin-top: 2px; }
+  .goal.done { opacity: .55; }
+  .goal.done .gname { text-decoration: line-through; }
+  .practice .ptitle { font-weight: 600; }
+  .practice .pbody { color: #cbd5e1; font-size: 12px; margin-top: 2px; }
+  .mini { font-size: 11px; padding: 2px 8px; margin-left: 6px; background: #334155; }
+  .mini:hover { background: #475569; }
+  .checklist { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 6px 0; font-size: 12px; }
+  .checklist label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  aside input[type=text], aside input[type=password], aside select { width: 100%; background: #0f172a; color: #e2e8f0;
+                   border: 1px solid #334155; border-radius: 8px; padding: 7px 8px;
+                   font-size: 13px; margin-bottom: 6px; }
+  .goal-chip { display: inline-block; font-size: 11px; background: #713f12; color: #fde68a;
+               border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+  .member.off-goal { opacity: .35; }
+  #goal-pick, #project-pick { background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+               border-radius: 8px; padding: 10px 8px; font-size: 13px; max-width: 220px; }
+  .project { padding: 8px; border-radius: 8px; margin-bottom: 6px;
+             background: #273449; font-size: 13px; }
+  .project .pname { font-weight: 600; }
+  .project .pmeta { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+  .project .pdesc { color: #cbd5e1; font-size: 12px; margin-top: 2px; }
+  .project .pfiles { margin-top: 6px; }
+  .project .pfile { display: block; width: 100%; text-align: left; background: none;
+                    border: 0; color: #93c5fd; font: 12px/1.5 monospace; cursor: pointer;
+                    padding: 2px 0; }
+  .project .pfile:hover { text-decoration: underline; }
+  .project .pcontent { background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+                       padding: 8px; margin-top: 6px; max-height: 220px; overflow: auto;
+                       font: 11px/1.5 monospace; white-space: pre-wrap; color: #cbd5e1; }
+  .project .pfile.active { font-weight: 700; color: #fbbf24; }
+  .project .plink { color: #93c5fd; font-size: 12px; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 780px; display: flex; gap: 10px; }
+  .msg .avatar { width: 32px; height: 32px; font-size: 15px; }
+  .msg .body { background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+               padding: 10px 12px; min-width: 0; }
+  .msg .meta { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  .msg .meta b { color: #e2e8f0; font-size: 13px; }
+  .msg .text { font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.user .body { background: #1d4ed8; border-color: #1d4ed8; }
+  .msg.user .meta { color: #bfdbfe; }
+  .msg.user .meta b { color: #fff; }
+  .msg.system .body, .msg.orchestrator .body { background: transparent; border-style: dashed; }
+  .msg.system .text, .msg.orchestrator .text { color: #94a3b8; font-size: 13px; }
+  #composer { padding: 12px 16px; border-top: 1px solid #334155; background: #1e293b;
+              display: flex; gap: 8px; position: relative; }
+  #input { flex: 1; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+           border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  #mention-box { position: absolute; bottom: 64px; left: 16px; background: #1e293b;
+                 border: 1px solid #475569; border-radius: 8px; min-width: 220px;
+                 box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none; z-index: 10; }
+  #mention-box div { padding: 8px 12px; font-size: 13px; cursor: pointer; }
+  #mention-box div:hover, #mention-box div.sel { background: #2563eb; }
+  #mention-box .spec { color: #94a3b8; font-size: 12px; }
+  #menu-btn { display: none; }
+  #aside-close { display: none; }
+  #backdrop { display: none; }
+  @media (max-width: 760px) {
+    /* Phone: the sidebar becomes a slide-in drawer (the roster, key
+       box, teams and goals stay reachable) instead of a fixed column
+       that squeezes the chat — or being hidden entirely. */
+    header { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+    header h1 { font-size: 16px; }
+    header .sub { display: none; }
+    #model-pill { font-size: 11px; padding: 3px 8px; }
+    #menu-btn { display: inline-block; background: #334155; color: #e2e8f0;
+                border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px;
+                cursor: pointer; min-height: 40px; }
+    #layout { flex-direction: column; }
+    aside { position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+            width: min(320px, 86vw); border-right: 1px solid #475569;
+            box-shadow: 0 0 32px rgba(0,0,0,.6);
+            transform: translateX(-105%); transition: transform .2s ease; }
+    body.sidebar-open aside { transform: translateX(0); }
+    #aside-close { display: block; width: 100%; background: #334155;
+                   color: #e2e8f0; border: 0; border-radius: 8px; padding: 10px;
+                   font-size: 14px; cursor: pointer; min-height: 44px;
+                   margin-bottom: 10px; }
+    #backdrop { display: block; position: fixed; inset: 0; z-index: 40;
+                background: rgba(0,0,0,.5); opacity: 0; pointer-events: none;
+                transition: opacity .2s ease; }
+    body.sidebar-open #backdrop { opacity: 1; pointer-events: auto; }
+    /* Touch-friendly: 44px targets, and 16px text fields so iOS does
+       not auto-zoom when the keyboard opens. */
+    aside input[type=text], aside input[type=password], aside select,
+    aside textarea { font-size: 16px; }
+    aside button { min-height: 44px; }
+    #add-member, #add-team, #add-goal, #add-bp { min-height: 44px; }
+    #messages { padding: 12px; }
+    .msg { max-width: 100%; }
+    .msg .text { font-size: 15px; }
+    /* Composer wraps: goal picker on its own row, then input + Send. */
+    #composer { flex-wrap: wrap; padding: 10px 12px; }
+    #goal-pick, #project-pick { flex: 1 1 100%; max-width: none; font-size: 16px; }
+    #input { font-size: 16px; min-height: 44px; }
+    #send { min-height: 44px; padding: 10px 18px; }
+    #mention-box { bottom: calc(100% + 8px); left: 12px; right: 12px; min-width: 0; }
+    body { overflow-x: hidden; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button id="menu-btn" aria-label="Open team panel">☰ Team</button>
+  <h1>🧑‍🤝‍🧑 Looper Team Room</h1>
+  <span class="sub">one instruction, a room full of specialists</span>
+  <span id="model-pill">checking model…</span>
+</header>
+<div id="layout">
+  <aside>
+    <button id="aside-close">✕ Close</button>
+    <h2>Your OpenAI key</h2>
+    <p class="hint">Bring your own key. It stays in this browser only
+      (localStorage) and is sent with each instruction — the server
+      never stores it.</p>
+    <input type="password" id="api-key" placeholder="sk-…" autocomplete="off">
+    <select id="api-model">
+      <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+      <option value="gpt-4o">gpt-4o</option>
+      <option value="gpt-4.1">gpt-4.1</option>
+      <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+      <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+      <option value="o4-mini">o4-mini</option>
+      <option value="o3-mini">o3-mini</option>
+      <option value="gpt-4-turbo">gpt-4-turbo</option>
+      <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+    </select>
+    <div style="display:flex;gap:6px">
+      <button id="save-key">Save key</button>
+      <button id="clear-key" class="mini">Clear</button>
+    </div>
+    <div id="key-status" class="hint"></div>
+    <h2>Team</h2>
+    <div id="roster"></div>
+    <h2>Leaderboard</h2>
+    <div id="leaderboard"></div>
+    <h2>Teams</h2>
+    <div id="teams"></div>
+    <input type="text" id="team-name" placeholder="New team name">
+    <div class="checklist" id="team-members"></div>
+    <button id="add-team">Create team</button>
+    <div id="team-error" class="err"></div>
+    <h2>Goals</h2>
+    <div id="goals"></div>
+    <input type="text" id="goal-title" placeholder="New goal title">
+    <input type="text" id="goal-desc" placeholder="Description (optional)">
+    <input type="text" id="goal-target" placeholder="Target tasks (default 5)">
+    <select id="goal-team"><option value="">Pick a team…</option></select>
+    <div class="checklist" id="goal-members"></div>
+    <button id="add-goal">Create goal</button>
+    <div id="goal-error" class="err"></div>
+    <h2>Projects</h2>
+    <p class="hint">Real files for the team's work. Pick a project
+      below (or in the chat bar) and the agents write their
+      deliverables into it with the file tools — the files persist
+      here, and can be downloaded or pushed to a GitHub repo.</p>
+    <div id="projects"></div>
+    <input type="text" id="project-name" placeholder="New project name">
+    <input type="text" id="project-desc" placeholder="Description (optional)">
+    <select id="project-goal"><option value="">Link to a goal (optional)…</option></select>
+    <button id="add-project">Create project</button>
+    <div id="project-error" class="err"></div>
+    <h2>Best practices</h2>
+    <div id="practices"></div>
+    <input type="text" id="bp-title" placeholder="Practice title">
+    <input type="text" id="bp-content" placeholder="What proved useful?">
+    <button id="add-bp">Add best practice</button>
+    <div id="bp-error" class="err"></div>
+    <h2>Add a member</h2>
+    <p class="hint">Upload or paste a SKILL.md-style file: name, specialty, system prompt.</p>
+    <input type="file" id="skill-file" accept=".md,.txt,text/markdown">
+    <textarea id="skill-text" placeholder="…or paste the skill file here"></textarea>
+    <button id="add-member">Add member</button>
+    <div id="member-error"></div>
+    <div id="member-ok"></div>
+    <details><summary>Skill file format</summary><pre>---
+name: Dana
+specialty: Data analysis
+---
+# Dana — Data Analyst
+
+## System prompt
+You are Dana, the Data Analyst in
+a team chat room. When asked to
+analyse numbers, compute the key
+figures and list the top findings.</pre></details>
+  </aside>
+  <main>
+    <div id="messages"></div>
+    <div id="composer">
+      <div id="mention-box"></div>
+      <select id="goal-pick" title="Goal this message belongs to"><option value="">No goal</option></select>
+      <select id="project-pick" title="Project this message writes to"><option value="">No project</option></select>
+      <input id="input" placeholder="Give the room an instruction… (try @leader, @qa, @dev)" autocomplete="off">
+      <button id="send">Send</button>
+    </div>
+  </main>
+</div>
+<div id="backdrop"></div>
+<script>
+const ROOM = "main";
+let members = [], teams = [], goals = [], practices = [], projects = [];
+let lastId = 0, activeGoal = "", activeProject = "";
+// BYOK: the key lives in this browser only (localStorage). It is sent
+// as a header on each instruction; the server never stores it.
+let byokKey = localStorage.getItem("teamroom.openaiKey") || "";
+let byokModel = localStorage.getItem("teamroom.model") || "gpt-4o-mini";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function refreshKeyUI() {
+  $("api-key").value = byokKey;
+  const modelSel = $("api-model");
+  // keep a previously saved model selectable even if it is not in the list
+  if (byokModel && ![...modelSel.options].some(o => o.value === byokModel)) {
+    const opt = document.createElement("option");
+    opt.value = byokModel; opt.textContent = byokModel;
+    modelSel.appendChild(opt);
+  }
+  modelSel.value = byokModel;
+  $("key-status").textContent = byokKey
+    ? `Key saved in this browser (…${byokKey.slice(-4)}). Model: ${byokModel}.`
+    : "No key saved — the room can't work until you add one (or the server has one).";
+  const pill = $("model-pill");
+  if (byokKey) { pill.textContent = `model: ${byokModel} (your key)`; pill.classList.remove("warn"); }
+}
+
+$("save-key").onclick = () => {
+  byokKey = $("api-key").value.trim();
+  byokModel = $("api-model").value.trim() || "gpt-4o-mini";
+  if (byokKey) localStorage.setItem("teamroom.openaiKey", byokKey);
+  else localStorage.removeItem("teamroom.openaiKey");
+  localStorage.setItem("teamroom.model", byokModel);
+  refreshKeyUI();
+  loadStatus();
+};
+$("clear-key").onclick = () => {
+  byokKey = ""; byokModel = "gpt-4o-mini";
+  localStorage.removeItem("teamroom.openaiKey");
+  localStorage.setItem("teamroom.model", byokModel);
+  refreshKeyUI();
+  loadStatus();
+};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || body.message || ("HTTP " + r.status));
+  return body;
+}
+const goalTitle = id => (goals.find(g => g.id === id) || {}).title || id;
+const teamName = id => (teams.find(t => t.id === id) || {}).name || id;
+
+function renderMember(m) {
+  const el = document.createElement("div");
+  el.className = "member";
+  el.dataset.handle = m.handle;
+  const xp = m.xp ?? 0, level = m.level ?? 1;
+  const into = m.xp_into_level ?? 0, next = m.xp_for_next ?? 100;
+  const pct = Math.min(100, Math.round(100 * into / next));
+  const badges = (m.badges || []).map(b =>
+    `<span class="badge-chip" title="${esc(b.desc)}">🏅 ${esc(b.name)}</span>`).join("");
+  el.innerHTML = `<div class="avatar" style="border:2px solid ${m.colour}">${m.emoji}</div>
+    <div><span class="name">${esc(m.name)}</span>
+    <span class="handle">@${esc(m.handle)}</span>${m.builtin ? "" : '<span class="badge">custom</span>'}
+    <div class="spec">${esc(m.specialty)}</div>
+    <div class="xp">Level ${level} · ${xp} XP <span class="bar"><i style="width:${pct}%"></i></span></div>
+    ${badges ? `<div class="badges">${badges}</div>` : ""}</div>`;
+  return el;
+}
+
+function renderLeaderboard(rows) {
+  const el = $("leaderboard");
+  el.innerHTML = rows.length ? "" : '<div class="hint">No XP yet — finish a turn.</div>';
+  rows.forEach((r, i) => {
+    const d = document.createElement("div");
+    d.className = "leader";
+    d.innerHTML = `<span class="rank">${i + 1}</span>
+      <span>${r.emoji}</span>
+      <span class="lname">${esc(r.name)} <span class="handle">@${esc(r.handle)}</span></span>
+      <span class="lxp">Lv ${r.level} · ${r.xp} XP</span>`;
+    el.appendChild(d);
+  });
+}
+
+async function loadLeaderboard() {
+  renderLeaderboard(await api("/api/leaderboard"));
+}
+
+function renderMessage(m) {
+  const el = document.createElement("div");
+  el.className = "msg " + (m.author_type || "");
+  const member = members.find(x => x.handle === m.handle);
+  const colour = member ? member.colour : "#64748b";
+  const emoji = member ? member.emoji : (m.author_type === "user" ? "🧑" : "🏠");
+  const name = m.author_type === "user" ? "You" : esc(m.author);
+  const time = new Date(m.ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  const chip = m.goal_id ? `<span class="goal-chip">🎯 ${esc(goalTitle(m.goal_id))}</span>` : "";
+  el.innerHTML = `<div class="avatar" style="border:2px solid ${colour}">${emoji}</div>
+    <div class="body"><div class="meta"><b>${name}</b> ${m.handle ? "@" + esc(m.handle) + " · " : ""}${time}${chip}</div>
+    <div class="text">${esc(m.content || "")}</div></div>`;
+  return el;
+}
+
+function addMessage(m) {
+  if (m.id <= lastId && lastId !== 0) return;
+  lastId = Math.max(lastId, m.id);
+  const box = $("messages");
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.appendChild(renderMessage(m));
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function loadStatus() {
+  const s = await api("/api/status");
+  const pill = $("model-pill");
+  if (s.mock) { pill.textContent = "model: mock (verification only)"; pill.classList.add("warn"); }
+  else if (byokKey) { pill.textContent = "model: " + byokModel + " (your key)"; pill.classList.remove("warn"); }
+  else if (s.model.configured) { pill.textContent = "model: " + s.model.model; pill.classList.remove("warn"); }
+  else { pill.textContent = "no model configured — add your key above"; pill.classList.add("warn"); }
+}
+
+async function loadRoster() {
+  members = await api("/api/agents");
+  const r = $("roster");
+  r.innerHTML = "";
+  members.forEach(m => r.appendChild(renderMember(m)));
+  applyGoalDimming();
+}
+
+function checklist(container, handles, group) {
+  const el = $(container);
+  el.innerHTML = "";
+  handles.forEach(h => {
+    const m = members.find(x => x.handle === h);
+    if (!m) return;
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" data-group="${group}" value="${esc(h)}"> ${esc(m.name)}`;
+    el.appendChild(lab);
+  });
+}
+const checkedHandles = group => [...document.querySelectorAll(`input[data-group="${group}"]:checked`)].map(x => x.value);
+
+function renderTeams() {
+  const el = $("teams");
+  el.innerHTML = teams.length ? "" : '<div class="hint">No teams yet.</div>';
+  teams.forEach(t => {
+    const d = document.createElement("div");
+    d.className = "team";
+    d.innerHTML = `<span class="tname">${esc(t.name)}</span>
+      <div class="members">${t.members.map(h => "@" + esc(h)).join(" ") || "no members"}</div>`;
+    t.members.forEach(h => {
+      const b = document.createElement("button");
+      b.className = "mini"; b.textContent = "✕ @" + h;
+      b.title = "Remove @" + h + " from " + t.name;
+      b.onclick = async () => { await api(`/api/teams/${t.id}/members/${h}`, {method: "DELETE"}); await loadTeams(); await loadGoals(); };
+      d.appendChild(b);
+    });
+    el.appendChild(d);
+  });
+  const sel = $("goal-team");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Pick a team…</option>' +
+    teams.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("");
+  sel.value = cur;
+  checklist("team-members", members.map(m => m.handle), "team");
+  refreshGoalMembers();
+}
+
+function refreshGoalMembers() {
+  const tid = $("goal-team").value;
+  const t = teams.find(x => x.id === tid);
+  checklist("goal-members", t ? t.members : [], "goal");
+}
+
+function renderGoals() {
+  const el = $("goals");
+  el.innerHTML = goals.length ? "" : '<div class="hint">No goals yet.</div>';
+  goals.forEach(g => {
+    const d = document.createElement("div");
+    d.className = "goal" + (g.status === "done" ? " done" : "");
+    const done = g.tasks_done ?? 0, target = g.target_tasks ?? 5;
+    const pct = Math.min(100, Math.round(100 * done / target));
+    d.innerHTML = `<span class="gname">${esc(g.title)}</span>
+      <div class="members">${esc(teamName(g.team_id))} · ${g.members.map(h => "@" + esc(h)).join(" ")}</div>
+      ${g.description ? `<div class="gdesc">${esc(g.description)}</div>` : ""}
+      <div class="bar-wrap"><i style="width:${pct}%"></i></div>
+      <div class="gprog">${done} / ${target} tasks · ${pct}%</div>`;
+    if (g.status === "active") {
+      const b = document.createElement("button");
+      b.className = "mini"; b.textContent = "mark done";
+      b.onclick = async () => { await api(`/api/goals/${g.id}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({status: "done"})}); await loadGoals(); };
+      d.appendChild(b);
+    }
+    const del = document.createElement("button");
+    del.className = "mini"; del.textContent = "✕";
+    del.onclick = async () => { await api(`/api/goals/${g.id}`, {method: "DELETE"}); await loadGoals(); syncGoalPick(); };
+    d.appendChild(del);
+    el.appendChild(d);
+  });
+  syncGoalPick();
+  syncProjectGoalPick();
+}
+
+function syncGoalPick() {
+  const sel = $("goal-pick");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">No goal</option>' +
+    goals.filter(g => g.status === "active").map(g =>
+      `<option value="${esc(g.id)}">${esc(g.title)} (${esc(teamName(g.team_id))})</option>`).join("");
+  sel.value = goals.some(g => g.id === cur) ? cur : "";
+  activeGoal = sel.value;
+  applyGoalDimming();
+}
+
+function applyGoalDimming() {
+  const g = goals.find(x => x.id === activeGoal);
+  document.querySelectorAll(".member").forEach(el => {
+    // The Leader is the orchestrator, not a delegate: it runs every turn
+    // (delegating only to the goal's members), so it is never dimmed.
+    el.classList.toggle("off-goal", !!g && el.dataset.handle !== "leader" &&
+      !g.members.includes(el.dataset.handle));
+  });
+}
+
+function renderPractices() {
+  const el = $("practices");
+  el.innerHTML = practices.length ? "" : '<div class="hint">None recorded yet.</div>';
+  practices.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "practice";
+    d.innerHTML = `<span class="ptitle">${esc(p.title)}</span>
+      <div class="pbody">${esc(p.content)}</div>`;
+    const del = document.createElement("button");
+    del.className = "mini"; del.textContent = "✕";
+    del.onclick = async () => { await api(`/api/best-practices/${p.id}`, {method: "DELETE"}); await loadPractices(); };
+    d.appendChild(del);
+    el.appendChild(d);
+  });
+}
+
+function renderProjects() {
+  const el = $("projects");
+  el.innerHTML = projects.length ? "" : '<div class="hint">No projects yet.</div>';
+  projects.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "project";
+    const linked = p.goal_id ? ` · 🎯 ${esc(goalTitle(p.goal_id))}` : "";
+    d.innerHTML = `<span class="pname">${esc(p.name)}</span>
+      <div class="pmeta">${p.file_count ?? 0} file(s)${linked}</div>
+      ${p.description ? `<div class="pdesc">${esc(p.description)}</div>` : ""}
+      <div class="pfiles"></div>
+      <div class="pcontent" style="display:none"></div>`;
+    const filesEl = d.querySelector(".pfiles");
+    const contentEl = d.querySelector(".pcontent");
+    const use = document.createElement("button");
+    use.className = "mini";
+    use.textContent = activeProject === p.id ? "✓ active" : "set active";
+    use.title = "Use this project for the next instruction";
+    use.onclick = () => { activeProject = p.id; syncProjectPick(); renderProjects(); };
+    d.appendChild(use);
+    (p.files || []).forEach(f => {
+      const b = document.createElement("button");
+      b.className = "pfile";
+      b.textContent = "📄 " + f;
+      b.onclick = async () => {
+        const row = await api(`/api/projects/${p.id}/files/${f.split("/").map(encodeURIComponent).join("/")}`);
+        contentEl.style.display = "block";
+        contentEl.textContent = row.content || "";
+      };
+      filesEl.appendChild(b);
+    });
+    const zip = document.createElement("a");
+    zip.className = "plink";
+    zip.href = `/api/projects/${p.id}/zip`;
+    zip.textContent = "⬇ Download .zip";
+    d.appendChild(zip);
+    const gh = document.createElement("button");
+    gh.className = "mini";
+    gh.textContent = "Create GitHub repo";
+    gh.title = "Creates a repo on your GitHub and pushes these files (needs GITHUB_TOKEN on the server)";
+    gh.onclick = async () => {
+      gh.disabled = true;
+      try {
+        const res = await api(`/api/projects/${p.id}/github`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({})});
+        contentEl.style.display = "block";
+        contentEl.textContent = `Repo created: ${res.repo_url}\n${res.files_pushed} file(s) pushed.`;
+      } catch (e) {
+        contentEl.style.display = "block";
+        contentEl.textContent = "GitHub: " + e.message;
+      } finally { gh.disabled = false; }
+    };
+    d.appendChild(gh);
+    el.appendChild(d);
+  });
+  syncProjectPick();
+  syncProjectGoalPick();
+}
+
+async function loadProjects() { projects = await api("/api/projects"); renderProjects(); }
+
+function syncProjectPick() {
+  const sel = $("project-pick");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">No project</option>' +
+    projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+  sel.value = projects.some(p => p.id === cur) ? cur : (activeProject || "");
+  activeProject = sel.value;
+}
+
+function syncProjectGoalPick() {
+  const sel = $("project-goal");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Link to a goal (optional)…</option>' +
+    goals.filter(g => g.status === "active").map(g =>
+      `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join("");
+  sel.value = cur;
+}
+
+async function loadTeams() { teams = await api("/api/teams"); renderTeams(); }
+async function loadGoals() { goals = await api("/api/goals"); renderGoals(); }
+async function loadPractices() { practices = await api("/api/best-practices"); renderPractices(); }
+
+async function loadHistory() {
+  const msgs = await api(`/api/rooms/${ROOM}/messages?after=0&limit=200`);
+  msgs.forEach(addMessage);
+  const box = $("messages");
+  box.scrollTop = box.scrollHeight;
+}
+
+function startStream() {
+  const es = new EventSource(`/api/rooms/${ROOM}/stream?after=${lastId}`);
+  es.onmessage = e => addMessage(JSON.parse(e.data));
+  es.onerror = () => { /* EventSource reconnects on its own */ };
+}
+
+async function send() {
+  const input = $("input");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  hideMentions();
+  $("send").disabled = true;
+  try {
+    // The POST streams the turn as SSE (the server runs the turn
+    // inside this response — on serverless a background thread would
+    // be frozen). Read it live; the persistent EventSource dedupes
+    // anything it also delivers.
+    const headers = {"Content-Type": "application/json"};
+    if (byokKey) {
+      headers["X-OpenAI-Key"] = byokKey;
+      headers["X-OpenAI-Model"] = byokModel;
+    }
+    const r = await fetch(`/api/rooms/${ROOM}/messages`, {
+      method: "POST", headers,
+      body: JSON.stringify({content: text, goal_id: activeGoal || null,
+        project_id: activeProject || null})});
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.detail || body.message || ("HTTP " + r.status));
+    }
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", done = false, sawDone = false;
+    while (!done) {
+      const chunk = await reader.read();
+      done = chunk.done;
+      if (chunk.value) {
+        buf += dec.decode(chunk.value, {stream: true});
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const block = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          for (const line of block.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            let obj;
+            try { obj = JSON.parse(payload); } catch { continue; }
+            if (obj.type === "turn_done") {
+              sawDone = true;
+              loadLeaderboard(); loadRoster(); loadGoals(); loadProjects();
+            }
+            else if (obj.type === "turn_timeout") {
+              addMessage({id: Date.now(), author: "Room", author_type: "system",
+                content: "The run hit the hosting time limit — partial results are above. Send the instruction again to continue.",
+                ts: Date.now() / 1000});
+            } else if (obj.id) { addMessage(obj); }
+          }
+        }
+      }
+    }
+    if (!sawDone) {
+      addMessage({id: Date.now() + 1, author: "Room", author_type: "system",
+        content: "The run ended before finishing — partial results are above.",
+        ts: Date.now() / 1000});
+    }
+  } catch (e) {
+    addMessage({id: Date.now(), author: "Room", author_type: "system",
+      content: "Could not send: " + e.message, ts: Date.now() / 1000});
+  } finally { $("send").disabled = false; }
+}
+
+// Mobile drawer: the sidebar (roster, key box, teams, goals) slides in
+// over the chat on narrow screens; the backdrop tap closes it.
+$("menu-btn").onclick = () => document.body.classList.toggle("sidebar-open");
+$("aside-close").onclick = () => document.body.classList.remove("sidebar-open");
+$("backdrop").onclick = () => document.body.classList.remove("sidebar-open");
+
+$("send").onclick = send;
+$("goal-pick").onchange = e => {
+  activeGoal = e.target.value;
+  applyGoalDimming();
+  // a goal with a linked project activates it for the next message
+  const linked = projects.find(p => p.goal_id === activeGoal);
+  if (linked) { activeProject = linked.id; syncProjectPick(); renderProjects(); }
+};
+$("project-pick").onchange = e => { activeProject = e.target.value; renderProjects(); };
+$("goal-team").onchange = refreshGoalMembers;
+$("input").addEventListener("keydown", e => {
+  if (e.key === "Enter") send();
+  if (e.key === "Escape") hideMentions();
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    const box = $("mention-box");
+    if (box.style.display === "block") { e.preventDefault(); moveSel(e.key === "ArrowDown" ? 1 : -1); }
+  }
+  if (e.key === "Tab") {
+    const sel = document.querySelector("#mention-box div.sel");
+    if (sel) { e.preventDefault(); pickMention(sel); }
+  }
+});
+
+let mentionSel = -1;
+function hideMentions() { $("mention-box").style.display = "none"; mentionSel = -1; }
+function moveSel(d) {
+  const items = [...document.querySelectorAll("#mention-box div")];
+  if (!items.length) return;
+  mentionSel = (mentionSel + d + items.length) % items.length;
+  items.forEach((el, i) => el.classList.toggle("sel", i === mentionSel));
+}
+function pickMention(el) {
+  const input = $("input");
+  input.value = input.value.replace(/@[\w-]*$/, "@" + el.dataset.handle + " ");
+  hideMentions();
+  input.focus();
+}
+$("input").addEventListener("input", () => {
+  const m = $("input").value.match(/@([\w-]*)$/);
+  const box = $("mention-box");
+  if (!m) { hideMentions(); return; }
+  const q = m[1].toLowerCase();
+  const hits = members.filter(x => x.handle.startsWith(q) || x.name.toLowerCase().includes(q)).slice(0, 6);
+  if (!hits.length) { hideMentions(); return; }
+  box.innerHTML = "";
+  hits.forEach(x => {
+    const d = document.createElement("div");
+    d.dataset.handle = x.handle;
+    d.innerHTML = `${x.emoji} <b>@${esc(x.handle)}</b> <span class="spec">${esc(x.specialty)}</span>`;
+    d.onclick = () => pickMention(d);
+    box.appendChild(d);
+  });
+  mentionSel = -1;
+  box.style.display = "block";
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest("#mention-box") && !e.target.closest("#input")) hideMentions();
+});
+
+$("add-member").onclick = async () => {
+  const err = $("member-error"), ok = $("member-ok");
+  err.textContent = ""; ok.textContent = "";
+  const file = $("skill-file").files[0];
+  const text = $("skill-text").value.trim();
+  if (!file && !text) { err.textContent = "Upload a skill file or paste one in the box."; return; }
+  const fd = new FormData();
+  if (file) fd.append("file", file);
+  else fd.append("text", text);
+  $("add-member").disabled = true;
+  try {
+    const m = await api("/api/members", {method: "POST", body: fd});
+    ok.textContent = `Added @${m.handle} (${m.name}) — mention it in the room to talk to it.`;
+    $("skill-file").value = ""; $("skill-text").value = "";
+    await loadRoster(); await loadTeams();
+  } catch (e) { err.textContent = e.message; }
+  finally { $("add-member").disabled = false; }
+};
+
+$("add-team").onclick = async () => {
+  const err = $("team-error");
+  err.textContent = "";
+  const name = $("team-name").value.trim();
+  try {
+    await api("/api/teams", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name, members: checkedHandles("team")})});
+    $("team-name").value = "";
+    await loadTeams(); await loadGoals();
+  } catch (e) { err.textContent = e.message; }
+};
+
+$("add-goal").onclick = async () => {
+  const err = $("goal-error");
+  err.textContent = "";
+  const title = $("goal-title").value.trim();
+  const team_id = $("goal-team").value;
+  const target = parseInt($("goal-target").value.trim(), 10);
+  try {
+    await api("/api/goals", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({title, description: $("goal-desc").value.trim(),
+        team_id, members: checkedHandles("goal"),
+        target_tasks: Number.isFinite(target) && target > 0 ? target : 5})});
+    $("goal-title").value = ""; $("goal-desc").value = ""; $("goal-target").value = "";
+    await loadGoals();
+  } catch (e) { err.textContent = e.message; }
+};
+
+$("add-project").onclick = async () => {
+  const err = $("project-error");
+  err.textContent = "";
+  const name = $("project-name").value.trim();
+  try {
+    await api("/api/projects", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({name, description: $("project-desc").value.trim(),
+        goal_id: $("project-goal").value || null})});
+    $("project-name").value = ""; $("project-desc").value = ""; $("project-goal").value = "";
+    await loadProjects();
+  } catch (e) { err.textContent = e.message; }
+};
+
+$("add-bp").onclick = async () => {
+  const err = $("bp-error");
+  err.textContent = "";
+  const title = $("bp-title").value.trim(), content = $("bp-content").value.trim();
+  try {
+    await api("/api/best-practices", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({title, content})});
+    $("bp-title").value = ""; $("bp-content").value = "";
+    await loadPractices();
+  } catch (e) { err.textContent = e.message; }
+};
+
+(async () => {
+  refreshKeyUI();
+  await loadStatus();
+  await loadRoster();
+  await loadLeaderboard();
+  await loadTeams();
+  await loadGoals();
+  await loadProjects();
+  await loadPractices();
+  await loadHistory();
+  startStream();
+})();
+</script>
+</body>
+</html>
